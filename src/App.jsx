@@ -1,7 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-import ToastSetup from './components/ToastSetup';
 import { ToastContainer } from 'react-toastify';
 
 import Login from "./pages/Login";
