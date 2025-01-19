@@ -18,6 +18,8 @@ const Login = () => {
 
     console.log("Login Data:", form);
 
+    window.location = "./service-list";
+
   };
 
   return (

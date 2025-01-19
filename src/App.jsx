@@ -5,6 +5,7 @@ import { ToastContainer } from 'react-toastify';
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ServiceList from "./pages/ServiceList";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/service-list" element={<ServiceList />} />
         <Route path="*" element={<Login />} /> {/* Redireciona para login por padrão */}
       </Routes>
     </Router>

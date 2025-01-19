@@ -1,4 +1,3 @@
-// ToastSetup.js
 import { ToastContainer } from 'react-toastify';
 
 const ToastSetup = () => {
