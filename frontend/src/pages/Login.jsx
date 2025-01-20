@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
-  const [loading, setLoading] = useState(false);  // Para mostrar o carregando enquanto a requisição é feita
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -18,30 +18,25 @@ const Login = () => {
       return;
     }
 
-    setLoading(true); // Começar a carregar
+    setLoading(true); 
 
     try {
-      // Fazer a requisição POST para o backend de login
       const response = await axios.post('http://localhost:5000/auth/login', {
         email: form.email,
         password: form.password,
       });
 
-      // Se o login for bem-sucedido
-      toast.success(response.data.message);  // Exibe a mensagem de sucesso
-      // Armazenar o token JWT no localStorage
+      toast.success(response.data.message);  
+
       localStorage.setItem("token", response.data.token);
 
-      // idusuario
       localStorage.setItem("idusuario", response.data.id);
 
-      // Redirecionar para a próxima página
       window.location = "./service-list";
     } catch (err) {
-      // Se ocorrer um erro (ex: credenciais inválidas)
       toast.error(err.response ? err.response.data.message : 'Erro ao fazer login!');
     } finally {
-      setLoading(false);  // Parar de carregar
+      setLoading(false);
     }
   };
 

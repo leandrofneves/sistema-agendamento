@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Calendar from "react-calendar";
 import { toast } from "react-toastify";
-import axios from "axios";
+import api from "../config/api";
 import "react-calendar/dist/Calendar.css";
 import "../assets/calendar.css";
 
@@ -13,11 +13,12 @@ const ServiceList = () => {
   const [showModal, setShowModal] = useState(false);
   const [availableTimes, setAvailableTimes] = useState([]);
   const [bookedTimes, setBookedTimes] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/services");
+        const response = await api.get("/services");
         setServices(response.data);
       } catch (err) {
         console.error("Erro ao buscar serviços:", err);
@@ -30,9 +31,7 @@ const ServiceList = () => {
 
   const fetchAvailableTimes = async (serviceId) => {
     try {
-      const response = await axios.get(
-        `http://localhost:5000/appointments/available-times/${serviceId}`
-      );
+      const response = await api.get(`/appointments/available-times/${serviceId}`);
       setAvailableTimes(response.data);
     } catch (err) {
       console.error("Erro ao buscar horários disponíveis:", err);
@@ -42,20 +41,15 @@ const ServiceList = () => {
 
   const fetchBookedTimes = async (serviceId, date) => {
     try {
-      const formattedDate = date.toISOString().split("T")[0];
-      const response = await axios.get(
-        `http://localhost:5000/appointments/block-times?idservice=${serviceId}&date=${formattedDate}`
-      );
+      const formattedDate = date.toISOString().split("T")[0]; //formatando a data
+      const response = await api.get(`/appointments/block-times?idservice=${serviceId}&date=${formattedDate}`);
   
       if (response.data && Array.isArray(response.data)) {
         // Mapear os horários ou processar se necessário
-        const bookedTimes = response.data.map(item => item.horario); // Assumindo que "date" contém os horários
+        const bookedTimes = response.data.map(item => item.horario);
         setBookedTimes(bookedTimes);
-
-        console.log(bookedTimes);
-        
       } else {
-        setBookedTimes([]); // Se a resposta for inesperada, define como vazio
+        setBookedTimes([]);
       }
     } catch (err) {
       console.error("Erro ao buscar horários agendados:", err);
@@ -85,12 +79,24 @@ const ServiceList = () => {
       return;
     }
 
+    setIsLoading(true);
+
     try {
       const formattedDate = selectedDate.toISOString().split("T")[0];
-      await axios.post("http://localhost:5000/appointments/user-services", {
+
+      const date = new Date(selectedDate);
+      
+      const day = String(date.getDate()).padStart(2, '0');  // Adiciona zero à esquerda
+      const month = String(date.getMonth() + 1).padStart(2, '0');  // Mês começa de 0
+      const year = date.getFullYear();
+      
+      const formattedDateString = `${day}/${month}/${year}`;
+
+      await api.post("/appointments/user-services", {
         iduser: localStorage.getItem("idusuario"),
         idservice: selectedService.idservice,
         date: formattedDate,
+        formattedDate: formattedDateString,
         idavailable_times: selectedTime
       });
 
@@ -101,7 +107,14 @@ const ServiceList = () => {
     } catch (err) {
       console.error("Erro ao agendar serviço:", err);
       toast.error("Erro ao agendar serviço!");
+    } finally {
+      setIsLoading(false); // Desativa o carregamento
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    window.location.href = "/login";
   };
 
   const availableFilteredTimes = availableTimes.filter(
@@ -141,6 +154,15 @@ const ServiceList = () => {
                 </li>
               ))}
             </ul>
+          </div>
+
+          <div className="p-6 pt-0 space-y-4 flex justify-end">
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-600"
+            >
+              Sair
+            </button>
           </div>
         </div>
       </div>
@@ -197,12 +219,14 @@ const ServiceList = () => {
                 onClick={handleSchedule}
                 className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-600"
               >
-                Confirmar
+                {isLoading ? "Carregando..." : "Confirmar"}
               </button>
             </div>
           </div>
         </div>
       )}
+
+    
     </section>
   );
 };

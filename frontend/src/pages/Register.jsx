@@ -13,38 +13,32 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Verificar se os campos estão preenchidos
     if (!form.name || !form.email || !form.password || !form.confirmPassword) {
       toast.warning('Por favor, preencha todos os campos!');
       return;
     }
 
-    // Verificar se as senhas coincidem
     if (form.password !== form.confirmPassword) {
       toast.warning('As senhas são diferentes!');
       return;
     }
 
-    setLoading(true);  // Iniciar o loading
+    setLoading(true);
 
     try {
-      // Fazer a requisição POST para o backend de cadastro
       const response = await axios.post('http://localhost:5000/auth/register', {
         name: form.name,
         email: form.email,
         password: form.password,
       });
 
-      // Se o cadastro for bem-sucedido
-      toast.success(response.data.message);  // Exibe a mensagem de sucesso
+      toast.success(response.data.message); 
 
-      // Redirecionar para a página de login ou outra página
-      window.location = "/login";  // ou qualquer página desejada após o cadastro
+      window.location = "/login"; 
     } catch (err) {
-      // Se ocorrer um erro (ex: e-mail já cadastrado)
       toast.error(err.response ? err.response.data.message : 'Erro ao cadastrar!');
     } finally {
-      setLoading(false);  // Parar de carregar
+      setLoading(false);
     }
   };
 

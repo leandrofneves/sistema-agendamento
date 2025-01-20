@@ -1,13 +1,10 @@
 const express = require("express");
-const db = require("../db"); // Conexão ao banco de dados
+const db = require("../db"); 
+const authenticateToken = require("../middleware/auth");
 const router = express.Router();
+const sendConfirmationEmail = require('../services/sendConfirmationEmail');
 
-/**
- * Rotas para a tabela sys_user_service
- */
-
-// Listar todos os registros de user-service
-router.get("/user-services", async (req, res) => {
+router.get("/user-services", authenticateToken, async (req, res) => {
   try {
     const result = await db.query(`
       SELECT us.iduser_service, us.iduser, us.idservice, us.date, us.ativo, 
@@ -25,106 +22,91 @@ router.get("/user-services", async (req, res) => {
   }
 });
 
-// Criar um registro na tabela user-service
-router.post("/user-services", async (req, res) => {
-  const { iduser, idservice, date, idavailable_times } = req.body;
+router.post("/user-services", authenticateToken, async (req, res) => {
+  const { iduser, idservice, date, formattedDate, idavailable_times } = req.body;
 
-  if (!iduser || !idservice || !date) {
+  if (!iduser || !idservice || !date || !idavailable_times) {
     return res.status(400).json({ error: "Todos os campos são obrigatórios!" });
   }
 
   try {
+    const serviceResult = await db.query("SELECT description FROM sys_service WHERE idservice = $1", [idservice]);
+    const service = serviceResult.rows[0];
+
+    if (!service) {
+      return res.status(404).json({ error: "Serviço não encontrado!" });
+    }
+
+    const timeResult = await db.query("SELECT TO_CHAR(horario, 'HH24:MI') AS horario FROM sys_available_times WHERE idavailable_times = $1", [idavailable_times]);
+    const time = timeResult.rows[0];
+
+    if (!time) {
+      return res.status(404).json({ error: "Horário não encontrado!" });
+    }
+
+    const userResult = await db.query("SELECT email FROM sys_user WHERE iduser = $1", [iduser]);
+    const email = userResult.rows[0].email;
+
+    if (!email) {
+      return res.status(404).json({ error: "Email não encontrado!" });
+    }
+
+    const formattedTimeString = time.horario;
+
     const result = await db.query(
       "INSERT INTO sys_user_service (iduser, idservice, date, idavailable_times) VALUES ($1, $2, $3, $4) RETURNING *",
       [iduser, idservice, date, idavailable_times]
     );
+
+    // Enviar e-mail de confirmação
+    const subject = 'Confirmação de Agendamento';
+    const message = `
+      Seu agendamento foi realizado com sucesso!
+
+      Detalhes:
+      Serviço: ${service.description}
+      Dia: ${formattedDate}
+      Horário: ${formattedTimeString}
+    `;
+
+    await sendConfirmationEmail(email, subject, message);
+
     res.status(201).json({ message: "Registro criado com sucesso!", record: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: "Erro ao criar registro: " + err.message });
   }
 });
 
-// Atualizar um registro da tabela user-service
-router.put("/user-services/:id", async (req, res) => {
-  const { id } = req.params;
-  const { iduser, idservice, date, ativo } = req.body;
-
-  if (!iduser || !idservice || !date) {
-    return res.status(400).json({ error: "Todos os campos são obrigatórios!" });
-  }
-
+router.get("/block-times", authenticateToken, async (req, res) => {
   try {
-    const result = await db.query(
-      "UPDATE sys_user_service SET iduser = $1, idservice = $2, date = $3, ativo = $4 WHERE iduser_service = $5 RETURNING *",
-      [iduser, idservice, date, ativo ?? true, id]
-    );
+    const { idservice, date } = req.query;
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Registro não encontrado!" });
+    if (!idservice || !date) {
+      return res.status(400).json({ error: "Parâmetros idservice e date são obrigatórios." });
     }
 
-    res.status(200).json({ message: "Registro atualizado com sucesso!", record: result.rows[0] });
+    const query = `
+      SELECT TO_CHAR(sat.horario, 'HH24:MI') AS horario
+      FROM sys_available_times sat
+      LEFT JOIN sys_user_service sus
+      ON sat.idavailable_times = sus.idavailable_times
+          AND sus.date = $1
+          AND sus.ativo = TRUE
+      WHERE sat.idservice = $2
+          AND sat.ativo = TRUE
+          AND sus.idavailable_times IS NOT NULL
+      ORDER BY sat.horario;
+    `;
+
+    const result = await db.query(query, [date, idservice]);
+
+    res.status(200).json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: "Erro ao atualizar registro: " + err.message });
+    res.status(500).json({ error: "Erro ao listar registros: " + err.message });
   }
 });
 
-// Exclusão lógica na tabela user-service
-router.delete("/user-services/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const result = await db.query(
-      "UPDATE sys_user_service SET ativo = FALSE WHERE iduser_service = $1 RETURNING *",
-      [id]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Registro não encontrado!" });
-    }
-
-    res.status(200).json({ message: "Registro excluído com sucesso!", record: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: "Erro ao excluir registro: " + err.message });
-  }
-});
-
-router.get("/block-times", async (req, res) => {
-    try {
-      const { idservice, date } = req.query;
-  
-      if (!idservice || !date) {
-        return res.status(400).json({ error: "Parâmetros idservice e date são obrigatórios." });
-      }
-  
-      const query = `
-        SELECT TO_CHAR(sat.horario, 'HH24:MI') AS horario
-        FROM sys_available_times sat
-        LEFT JOIN sys_user_service sus
-        ON sat.idavailable_times = sus.idavailable_times
-            AND sus.date = $1
-            AND sus.ativo = TRUE
-        WHERE sat.idservice = $2
-            AND sat.ativo = TRUE
-            AND sus.idavailable_times IS NOT NULL
-        ORDER BY sat.horario;
-      `;
-  
-      const result = await db.query(query, [date, idservice]);
-  
-      res.status(200).json(result.rows);
-    } catch (err) {
-      res.status(500).json({ error: "Erro ao listar registros: " + err.message });
-    }
-  });
-  
-
-/**
- * Rotas para a tabela sys_available_times
- */
-
-// Listar horários disponíveis para um serviço
-router.get("/available-times/:idservice", async (req, res) => {
+router.get("/available-times/:idservice", authenticateToken, async (req, res) => {
   const { idservice } = req.params;
 
   try {
@@ -139,7 +121,6 @@ router.get("/available-times/:idservice", async (req, res) => {
   }
 });
 
-// Criar horário disponível para um serviço
 router.post("/available-times", async (req, res) => {
   const { idservice, horario } = req.body;
 
@@ -155,51 +136,6 @@ router.post("/available-times", async (req, res) => {
     res.status(201).json({ message: "Horário criado com sucesso!", record: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: "Erro ao criar horário: " + err.message });
-  }
-});
-
-// Atualizar horário disponível
-router.put("/available-times/:id", async (req, res) => {
-  const { id } = req.params;
-  const { idservice, horario, ativo } = req.body;
-
-  if (!idservice || !horario) {
-    return res.status(400).json({ error: "Todos os campos são obrigatórios!" });
-  }
-
-  try {
-    const result = await db.query(
-      "UPDATE sys_available_times SET idservice = $1, horario = $2, ativo = $3 WHERE idavailable_times = $4 RETURNING *",
-      [idservice, horario, ativo ?? true, id]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Horário não encontrado!" });
-    }
-
-    res.status(200).json({ message: "Horário atualizado com sucesso!", record: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: "Erro ao atualizar horário: " + err.message });
-  }
-});
-
-// Exclusão lógica de horário disponível
-router.delete("/available-times/:id", async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const result = await db.query(
-      "UPDATE sys_available_times SET ativo = FALSE WHERE idavailable_times = $1 RETURNING *",
-      [id]
-    );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({ error: "Horário não encontrado!" });
-    }
-
-    res.status(200).json({ message: "Horário excluído com sucesso!", record: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: "Erro ao excluir horário: " + err.message });
   }
 });
 

@@ -12,7 +12,6 @@ router.post("/register", async (req, res) => {
   }
 
   try {
-    // Criptografar a senha
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await db.query(
@@ -34,7 +33,6 @@ router.post("/login", async (req, res) => {
   }
 
   try {
-    // Verificar se o usuário existe no banco de dados
     const result = await db.query("SELECT * FROM sys_user WHERE email = $1", [email]);
     const user = result.rows[0];
 
@@ -42,13 +40,11 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ message: "Credenciais inválidas!" });
     }
 
-    // Verificar se a senha está correta
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       return res.status(400).json({ message: "Credenciais inválidas!" });
     }
 
-    // Gerar o token JWT
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
     res.json({ message: "Login bem-sucedido!", token, id: user.iduser  });
