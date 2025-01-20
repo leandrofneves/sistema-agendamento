@@ -51,7 +51,7 @@ router.post("/login", async (req, res) => {
     // Gerar o token JWT
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-    res.json({ message: "Login bem-sucedido!", token });
+    res.json({ message: "Login bem-sucedido!", token, id: user.iduser  });
   } catch (err) {
     res.status(400).json({ error: "Erro ao realizar login: " + err.message });
   }

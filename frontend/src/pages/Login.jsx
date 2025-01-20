@@ -32,6 +32,9 @@ const Login = () => {
       // Armazenar o token JWT no localStorage
       localStorage.setItem("token", response.data.token);
 
+      // idusuario
+      localStorage.setItem("idusuario", response.data.id);
+
       // Redirecionar para a próxima página
       window.location = "./service-list";
     } catch (err) {

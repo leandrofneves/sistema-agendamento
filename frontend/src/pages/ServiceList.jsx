@@ -1,89 +1,112 @@
 import React, { useState, useEffect } from "react";
 import Calendar from "react-calendar";
 import { toast } from "react-toastify";
+import axios from "axios";
 import "react-calendar/dist/Calendar.css";
 import "../assets/calendar.css";
 
 const ServiceList = () => {
-  const services = [
-    { id: 1, name: "Corte de Cabelo", duration: "1h" },
-    { id: 2, name: "Manicure", duration: "2h" },
-    { id: 3, name: "Massagem Relaxante", duration: "3h" },
-  ];
-
+  const [services, setServices] = useState([]);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [availableTimesByService, setAvailableTimesByService] = useState({});
-  const [bookedTimes, setBookedTimes] = useState([]); // Armazenar os horários já agendados
+  const [availableTimes, setAvailableTimes] = useState([]);
+  const [bookedTimes, setBookedTimes] = useState([]);
 
-  // Simula a obtenção de horários permitidos para cada serviço
   useEffect(() => {
-    const fetchAvailableTimes = async () => {
-      // Exemplo de resposta da API para horários disponíveis
-      const response = {
-        1: ["09:00", "13:00", "17:00"], // Corte de cabelo
-        2: ["09:00", "13:00"], // Manicure
-        3: ["10:00", "14:00", "18:00"], // Massagem relaxante
-      };
-      setAvailableTimesByService(response);
+    const fetchServices = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/services");
+        setServices(response.data);
+      } catch (err) {
+        console.error("Erro ao buscar serviços:", err);
+        toast.error("Erro ao carregar serviços!");
+      }
     };
 
-    fetchAvailableTimes();
+    fetchServices();
   }, []);
 
-  // Função para buscar os agendamentos no dia selecionado
-  const fetchBookedTimes = async (serviceId, date) => {
-    // Exemplo de requisição API para buscar horários já agendados para o serviço e a data
-    // const response = await fetch(`/api/agendamentos?serviceId=${serviceId}&date=${date}`);
-    // const data = await response.json();
-    
-    // if (data.bookedTimes) {
-    //   setBookedTimes(data.bookedTimes);
-    // }
+  const fetchAvailableTimes = async (serviceId) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:5000/appointments/available-times/${serviceId}`
+      );
+      setAvailableTimes(response.data);
+    } catch (err) {
+      console.error("Erro ao buscar horários disponíveis:", err);
+      toast.error("Erro ao carregar horários disponíveis!");
+    }
+  };
 
-    setBookedTimes(['13:00'])
+  const fetchBookedTimes = async (serviceId, date) => {
+    try {
+      const formattedDate = date.toISOString().split("T")[0];
+      const response = await axios.get(
+        `http://localhost:5000/appointments/block-times?idservice=${serviceId}&date=${formattedDate}`
+      );
+  
+      if (response.data && Array.isArray(response.data)) {
+        // Mapear os horários ou processar se necessário
+        const bookedTimes = response.data.map(item => item.horario); // Assumindo que "date" contém os horários
+        setBookedTimes(bookedTimes);
+
+        console.log(bookedTimes);
+        
+      } else {
+        setBookedTimes([]); // Se a resposta for inesperada, define como vazio
+      }
+    } catch (err) {
+      console.error("Erro ao buscar horários agendados:", err);
+      toast.error("Erro ao carregar horários agendados!");
+    }
   };
 
   const handleDateChange = (date) => {
     const today = new Date();
-    const selectedDate = new Date(date);
-  
-    // Ajustar a data para desconsiderar a hora (apenas ano, mês e dia)
     today.setHours(0, 0, 0, 0);
-    selectedDate.setHours(0, 0, 0, 0);
-  
-    // Verificar se a data selecionada é no futuro
-    if (selectedDate < today) {
+
+    if (date < today) {
       toast.warning("Data inválida.");
-      return; // Não permitir seleção de data passada
+      return;
     }
-    
+
     setSelectedDate(date);
+
     if (selectedService) {
-      const formattedDate = date.toISOString().split("T")[0]; // Formatar a data para o formato YYYY-MM-DD
-      fetchBookedTimes(selectedService.id, formattedDate); // Buscar horários já agendados para a data e o serviço selecionado
+      fetchBookedTimes(selectedService.idservice, date);
     }
   };
 
-  const handleSchedule = () => {
+  const handleSchedule = async () => {
     if (!selectedDate || !selectedTime) {
       toast.warning("Por favor, selecione uma data e horário!");
       return;
     }
 
-    toast.success("Serviço agendado com sucesso!");
-    setShowModal(false);
-    setSelectedDate(null);
-    setSelectedTime("");
+    try {
+      const formattedDate = selectedDate.toISOString().split("T")[0];
+      await axios.post("http://localhost:5000/appointments/user-services", {
+        iduser: localStorage.getItem("idusuario"),
+        idservice: selectedService.idservice,
+        date: formattedDate,
+        idavailable_times: selectedTime
+      });
+
+      toast.success("Serviço agendado com sucesso!");
+      setShowModal(false);
+      setSelectedDate(null);
+      setSelectedTime("");
+    } catch (err) {
+      console.error("Erro ao agendar serviço:", err);
+      toast.error("Erro ao agendar serviço!");
+    }
   };
 
-  const availableTimes = () => {
-    if (!selectedService) return [];
-    // Filtrar os horários disponíveis removendo os que já estão agendados
-    return availableTimesByService[selectedService.id].filter(time => !bookedTimes.includes(time));
-  };
+  const availableFilteredTimes = availableTimes.filter(
+    (time) => !bookedTimes.includes(time.horario)
+  );
 
   return (
     <section className="bg-gray-50 dark:bg-gray-900">
@@ -96,11 +119,11 @@ const ServiceList = () => {
             <ul className="space-y-4">
               {services.map((service) => (
                 <li
-                  key={service.id}
+                  key={service.idservice}
                   className="p-4 bg-gray-100 dark:bg-gray-700 rounded-lg shadow-md"
                 >
                   <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {service.name}
+                    {service.description}
                   </h2>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
                     Duração: {service.duration}
@@ -108,6 +131,7 @@ const ServiceList = () => {
                   <button
                     onClick={() => {
                       setSelectedService(service);
+                      fetchAvailableTimes(service.idservice);
                       setShowModal(true);
                     }}
                     className="mt-2 text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:outline-none focus:ring-indigo-300 font-medium rounded-lg text-sm px-4 py-2 text-center dark:bg-indigo-600 dark:hover:bg-indigo-700 dark:focus:ring-indigo-800"
@@ -129,7 +153,7 @@ const ServiceList = () => {
             </h2>
             <div className="mb-4">
               <Calendar
-                className='rounded-lg'
+                className="rounded-lg"
                 onChange={handleDateChange}
                 value={selectedDate}
                 formatShortWeekday={(locale, date) =>
@@ -151,16 +175,16 @@ const ServiceList = () => {
                 className="w-full border rounded-lg p-2"
               >
                 <option value="">Selecione um horário</option>
-                {availableTimes().map((time) => (
-                  <option key={time} value={time}>
-                    {time}
+                {availableFilteredTimes.map((time) => (
+                  <option key={time.horario} value={time.idavailable_times}>
+                    {time.horario}
                   </option>
                 ))}
               </select>
             </div>
             <div className="flex justify-end space-x-2">
               <button
-                onClick= {() => {
+                onClick={() => {
                   setShowModal(false);
                   setSelectedDate(null);
                   setSelectedTime("");

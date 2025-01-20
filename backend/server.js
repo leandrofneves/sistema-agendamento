@@ -4,8 +4,8 @@ const bodyParser = require("body-parser");
 const cors = require('cors');
 
 const authRoutes = require("./routes/auth");
-// const serviceRoutes = require("./routes/services");
-// const appointmentRoutes = require("./routes/appointments");
+const serviceRoutes = require("./routes/services");
+const appointmentRoutes = require("./routes/appointments");
 
 const db = require("./db");
 
@@ -21,8 +21,8 @@ db.connect()
 
 // Rotas
 app.use("/auth", authRoutes);
-// app.use("/services", serviceRoutes);
-// app.use("/appointments", appointmentRoutes);
+app.use("/services", serviceRoutes);
+app.use("/appointments", appointmentRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Servidor rodando na porta ${PORT}`));
