@@ -30,6 +30,12 @@ EMAIL_USER=seu email
 EMAIL_PASS=sua senha
 ```
 
+O arquivo com o script do banco de dados se encontra em:
+
+```
+backend/db/script.sql
+```
+
 ## ⚙️ Executando
 Nas duas pastas (frontend e backend), rode:
 
@@ -44,7 +50,11 @@ Para popular:
 
 1- Aponte para rota "services" e passe os parâmetros "description" (string) e "duration" (string).
    Guarde o "idservice" que será retornado.
+
+
    ![alt text](image.png)
+
+   
 2- Com o "idservice" em mãos, use para cadastrar horários apontando para rota "appointments/available-times", 
    passando os parâmetros "idservice" (integer) e "horario" (time - ex: 09:00).
    ![alt text](image-1.png)
