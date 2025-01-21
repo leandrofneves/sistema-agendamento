@@ -1,8 +1,15 @@
 const express = require("express");
+const bodyParser = require("body-parser");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
 const router = express.Router();
+
+const cors = require('cors');
+
+const app = express();
+app.use(bodyParser.json());
+app.use(cors());
 
 router.post("/register", async (req, res) => {
   const { name, email, password } = req.body;
