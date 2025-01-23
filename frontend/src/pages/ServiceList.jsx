@@ -39,6 +39,7 @@ const ServiceList = () => {
     }
   };
 
+  //horarios reservados em determinado dia
   const fetchBookedTimes = async (serviceId, date) => {
     try {
       const formattedDate = date.toISOString().split("T")[0]; //formatando a data

@@ -4,24 +4,6 @@ const authenticateToken = require("../middleware/auth");
 const router = express.Router();
 const sendConfirmationEmail = require('../services/sendConfirmationEmail');
 
-router.get("/user-services", authenticateToken, async (req, res) => {
-  try {
-    const result = await db.query(`
-      SELECT us.iduser_service, us.iduser, us.idservice, us.date, us.ativo, 
-             u.name AS user_name, 
-             s.description AS service_name, 
-             s.duration AS service_duration
-      FROM sys_user_service us
-      JOIN sys_user u ON u.iduser = us.iduser
-      JOIN sys_service s ON s.idservice = us.idservice
-      WHERE us.ativo = TRUE
-    `);
-    res.status(200).json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: "Erro ao listar registros: " + err.message });
-  }
-});
-
 router.post("/user-services", authenticateToken, async (req, res) => {
   const { iduser, idservice, date, formattedDate, idavailable_times } = req.body;
 

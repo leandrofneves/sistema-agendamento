@@ -54,9 +54,11 @@ Para popular:
 
    ![alt text](image.png)
 
-   
+
 2- Com o "idservice" em mãos, use para cadastrar horários apontando para rota "appointments/available-times", 
    passando os parâmetros "idservice" (integer) e "horario" (time - ex: 09:00).
+
+   
    ![alt text](image-1.png)
 
 ## 🛠️ Construído com
